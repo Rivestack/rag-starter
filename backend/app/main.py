@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.database import engine
 from app.models import Base
 from app.routers import search, ingest, stats
+from app.services.embeddings import generate_embedding
 
 
 @asynccontextmanager
@@ -32,6 +33,8 @@ async def lifespan(app: FastAPI):
             ON chunks USING hnsw (embedding vector_cosine_ops)
             WITH (m = 16, ef_construction = 64)
         """))
+    # Warm up OpenAI connection so first search is fast
+    await generate_embedding("warmup")
     yield
     await engine.dispose()
 
