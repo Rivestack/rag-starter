@@ -6,11 +6,18 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  REGISTRY: ghcr.io
+  REPO: ${{ github.repository }}
+
 jobs:
   build-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set image name
+        run: echo "IMAGE_NAME=${REPO,,}/backend" >> $GITHUB_ENV
 
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
@@ -26,13 +33,16 @@ jobs:
           context: ./backend
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            ghcr.io/${{ github.repository }}/backend:latest
-            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
   build-frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set image name
+        run: echo "IMAGE_NAME=${REPO,,}/frontend" >> $GITHUB_ENV
 
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
@@ -48,5 +58,5 @@ jobs:
           context: ./frontend
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            ghcr.io/${{ github.repository }}/frontend:latest
-            ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
