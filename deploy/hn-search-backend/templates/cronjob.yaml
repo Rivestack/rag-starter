@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-daily-ingest
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  schedule: "0 6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          imagePullSecrets:
+            - name: ghcr
+          containers:
+            - name: ingest
+              image: "curlimages/curl:latest"
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -f -X POST http://{{ .Release.Name }}-service:{{ .Values.service.port }}/api/ingest/daily
+              resources:
+                limits:
+                  cpu: '100m'
+                  memory: '64Mi'
+          restartPolicy: OnFailure

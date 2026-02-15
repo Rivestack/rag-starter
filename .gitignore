@@ -10,16 +10,11 @@ env/
 
 # Node
 node_modules/
-.nuxt/
-.output/
 dist/
 
 # Environment
 .env
 .env.local
-
-# Uploads
-backend/uploads/*.pdf
 
 # IDE
 .vscode/

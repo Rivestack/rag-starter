@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Integer, BigInteger, Text, ForeignKey, DateTime, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, Index
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 
@@ -11,42 +11,60 @@ class Base(DeclarativeBase):
     pass
 
 
-class Document(Base):
-    __tablename__ = "documents"
+class Story(Base):
+    __tablename__ = "stories"
+    __table_args__ = (
+        Index("idx_stories_hn_id", "hn_id", unique=True),
+        Index("idx_stories_created_at", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    filename: Mapped[str] = mapped_column(String(500), nullable=False)
-    file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    page_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    upload_status: Mapped[str] = mapped_column(String(20), default="processing")
+    hn_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    title: Mapped[str] = mapped_column(String(1000), nullable=False)
+    url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    author: Mapped[str] = mapped_column(String(200), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_comments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    story_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    story_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="story"
+    )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     chunks: Mapped[list["Chunk"]] = relationship(
-        back_populates="document", cascade="all, delete-orphan"
+        back_populates="story", cascade="all, delete-orphan"
     )
 
 
 class Chunk(Base):
     __tablename__ = "chunks"
     __table_args__ = (
-        Index("idx_chunks_document_id", "document_id"),
+        Index("idx_chunks_story_id", "story_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    story_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stories.id", ondelete="CASCADE"), nullable=False
     )
-    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    bbox_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chunk_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )
+    author: Mapped[str | None] = mapped_column(
+        String(200), nullable=True
+    )
     embedding = mapped_column(Vector(1536), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
-    document: Mapped["Document"] = relationship(back_populates="chunks")
+    story: Mapped["Story"] = relationship(back_populates="chunks")

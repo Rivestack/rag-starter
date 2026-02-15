@@ -38,7 +38,7 @@ jobs:
 
       - name: Create app secrets
         run: |
-          kubectl create secret generic docchat-backend-config \
+          kubectl create secret generic hn-search-backend-config \
             --from-literal=DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
             --namespace rivestack-demo \
@@ -47,8 +47,8 @@ jobs:
 
       - name: Create frontend secrets
         run: |
-          kubectl create secret generic docchat-frontend-config \
-            --from-literal=NUXT_PUBLIC_API_BASE="https://docchat-api.rivestack.io" \
+          kubectl create secret generic hn-search-frontend-config \
+            --from-literal=VITE_API_BASE="https://ask-api.rivestack.io" \
             --namespace rivestack-demo \
             --dry-run=client -o yaml | \
             kubectl apply -f - --kubeconfig kubeconfig.yaml
@@ -63,9 +63,14 @@ jobs:
             --dry-run=client -o yaml | \
             kubectl apply -f - --kubeconfig kubeconfig.yaml
 
+      - name: Uninstall old releases
+        run: |
+          helm uninstall docchat-backend --namespace rivestack-demo --kubeconfig kubeconfig.yaml 2>/dev/null || true
+          helm uninstall docchat-frontend --namespace rivestack-demo --kubeconfig kubeconfig.yaml 2>/dev/null || true
+
       - name: Deploy backend
         run: |
-          helm upgrade docchat-backend ./deploy/docchat-backend \
+          helm upgrade hn-search-backend ./deploy/hn-search-backend \
             --install \
             --atomic \
             --timeout 10m \
@@ -75,7 +80,7 @@ jobs:
 
       - name: Deploy frontend
         run: |
-          helm upgrade docchat-frontend ./deploy/docchat-frontend \
+          helm upgrade hn-search-frontend ./deploy/hn-search-frontend \
             --install \
             --atomic \
             --timeout 10m \

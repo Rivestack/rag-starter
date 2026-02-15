@@ -1,0 +1,37 @@
+replicaCount: 1
+
+secret: hn-search-backend-config
+
+image:
+  repository: ghcr.io/rivestack/rag-starter/backend
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  limits:
+    cpu: '500m'
+    memory: '512Mi'
+  requests:
+    cpu: '250m'
+    memory: '256Mi'
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '600'
+  hosts:
+    - host: ask-api.rivestack.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - ask-api.rivestack.io
+      secretName: hn-search-backend-tls-prod

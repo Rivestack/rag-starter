@@ -1,0 +1,35 @@
+replicaCount: 1
+
+secret: hn-search-frontend-config
+
+image:
+  repository: ghcr.io/rivestack/rag-starter/frontend
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  limits:
+    cpu: '500m'
+    memory: '256Mi'
+  requests:
+    cpu: '250m'
+    memory: '128Mi'
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: ask.rivestack.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - ask.rivestack.io
+      secretName: hn-search-frontend-tls-prod

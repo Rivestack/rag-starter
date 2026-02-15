@@ -1,5 +1,4 @@
-FROM node:20-slim AS build
-
+FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
@@ -8,13 +7,13 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20-slim
+FROM node:22-alpine AS serve
+RUN npm install -g serve
 
-WORKDIR /app
+COPY --from=build /app/dist /usr/share/app
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-COPY --from=build /app/.output .output
+EXPOSE 8080
 
-ENV PORT=3000
-EXPOSE ${PORT}
-
-CMD ["node", ".output/server/index.mjs"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

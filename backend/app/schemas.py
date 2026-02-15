@@ -1,38 +1,48 @@
 from pydantic import BaseModel
-from uuid import UUID
-from datetime import datetime
 
 
-class DocumentResponse(BaseModel):
-    id: UUID
-    filename: str
-    file_size: int
-    page_count: int
-    upload_status: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 10
 
 
-class DocumentListResponse(BaseModel):
-    documents: list[DocumentResponse]
-
-
-class ChatRequest(BaseModel):
-    document_id: UUID
-    message: str
-    conversation_history: list[dict] | None = None
-
-
-class SourceChunk(BaseModel):
-    chunk_id: UUID
-    content: str
-    page_number: int
-    bbox_data: list[dict]
+class SearchResultItem(BaseModel):
+    story_title: str
+    story_url: str | None
+    story_author: str
+    story_score: int
+    story_hn_url: str
+    matched_content: str
+    chunk_type: str
+    comment_author: str | None = None
     similarity_score: float
+    story_date: str
 
 
-class ChatResponse(BaseModel):
-    answer: str
-    sources: list[SourceChunk]
-    model: str
+class PerformanceStats(BaseModel):
+    query_time_ms: float
+    embedding_time_ms: float
+    total_time_ms: float
+    chunks_searched: int
+    results_found: int
+    index_type: str
+    similarity_metric: str
+
+
+class SearchResponse(BaseModel):
+    results: list[SearchResultItem]
+    performance: PerformanceStats
+
+
+class DbStats(BaseModel):
+    total_stories: int
+    total_chunks: int
+    oldest_story: str | None
+    newest_story: str | None
+    index_type: str
+
+
+class IngestResponse(BaseModel):
+    stories_fetched: int
+    chunks_created: int
+    duration_seconds: float
