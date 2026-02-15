@@ -1,0 +1,30 @@
+{
+  "name": "docchat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxtjs/color-mode": "^4.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-vue-next": "^0.460.0",
+    "nuxt": "^3.15.0",
+    "pdfjs-dist": "^4.9.155",
+    "radix-vue": "^1.9.9",
+    "tailwind-merge": "^2.6.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.13.1",
+    "shadcn-nuxt": "^0.11.2",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.7.0"
+  }
+}
