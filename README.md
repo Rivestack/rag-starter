@@ -2,7 +2,6 @@
 
 A stunning RAG demo app that lets you upload PDFs, ask questions in plain English, and get AI-powered answers with highlighted source passages. Built on **[Rivestack](https://rivestack.com)** (managed PostgreSQL + pgvector).
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/new?referralCode=rivestack)
 ![Powered by Rivestack](https://img.shields.io/badge/Powered%20by-Rivestack-blue)
 
 ## Features
@@ -12,7 +11,7 @@ A stunning RAG demo app that lets you upload PDFs, ask questions in plain Englis
 - **Source highlights** — click a source badge to see the exact passage highlighted in the PDF
 - **Split-screen UI** — PDF viewer on the left, chat on the right
 - **Conversation memory** — follow-up questions understand context
-- **One-click deploy** to Railway via GitHub Actions
+- **Auto-deploy** to Kubernetes via GitHub Actions
 
 ## Tech Stack
 
@@ -24,56 +23,61 @@ A stunning RAG demo app that lets you upload PDFs, ask questions in plain Englis
 | Embeddings | OpenAI `text-embedding-3-small` |
 | LLM | OpenAI `gpt-4o-mini` |
 | PDF Parsing | PyMuPDF |
-| Deploy | [Railway](https://railway.com?referralCode=rivestack) + GitHub Actions |
+| Deploy | Kubernetes + Helm + GitHub Actions |
 
 ---
 
-## Deploy to Railway (Recommended)
+## Deploy to Kubernetes
 
-The fastest way to get DocChat running in production.
+The app auto-deploys to a Kubernetes cluster via GitHub Actions on every push to `main`.
 
-### Step 1: Get your services ready
+### Prerequisites
 
-1. **Rivestack database** — Sign up at [rivestack.com](https://rivestack.com) and create a PostgreSQL database with pgvector enabled. Copy your connection string.
-2. **OpenAI API key** — Get one at [platform.openai.com](https://platform.openai.com)
-3. **Railway account** — Sign up at [railway.com](https://railway.com?referralCode=rivestack)
+- A Kubernetes cluster with nginx ingress controller and cert-manager
+- A [Rivestack](https://rivestack.com) PostgreSQL database with pgvector enabled
+- An [OpenAI](https://platform.openai.com) API key
 
-### Step 2: Set up Railway project
+### GitHub Secrets
 
-1. Go to [railway.com/new](https://railway.com/new?referralCode=rivestack) and create a new project
-2. Click **"Deploy from GitHub Repo"** and select this repository
-3. Railway will detect two services from the monorepo. Create two services:
-   - **backend** — set root directory to `/backend`
-   - **frontend** — set root directory to `/frontend`
+Add these secrets in your GitHub repo under **Settings > Secrets and variables > Actions**:
 
-### Step 3: Configure environment variables
+| Secret | Description |
+|--------|-------------|
+| `PRD_KUBECONFIG` | Your Kubernetes cluster kubeconfig (base64 or raw YAML) |
+| `GH_TOKEN` | GitHub token with `packages:write` for GHCR |
+| `DATABASE_URL` | Rivestack PostgreSQL connection string |
+| `OPENAI_API_KEY` | OpenAI API key |
 
-In the Railway dashboard, add these variables to each service:
+### What happens on push
 
-**Backend service:**
-| Variable | Value |
-|----------|-------|
-| `DATABASE_URL` | Your Rivestack PostgreSQL connection string |
-| `OPENAI_API_KEY` | Your OpenAI API key |
-| `PORT` | `8000` |
+1. **`build.yml`** — Builds Docker images for backend and frontend, pushes to GHCR
+2. **`deploy.yml`** — Triggered after successful build:
+   - Creates `rivestack-demo` namespace
+   - Creates K8s secrets from GitHub secrets (`docchat-backend-config`, `docchat-frontend-config`)
+   - Creates GHCR pull secret
+   - Helm deploys backend → `docchat-api.rivestack.io`
+   - Helm deploys frontend → `docchat.rivestack.io`
 
-**Frontend service:**
-| Variable | Value |
-|----------|-------|
-| `NUXT_PUBLIC_API_BASE` | Your backend Railway URL (e.g. `https://backend-xxx.up.railway.app`) |
-| `PORT` | `3000` |
+### Helm Charts
 
-### Step 4: Deploy via GitHub Actions (auto-deploy on push)
-
-1. In Railway, go to **Account Settings > Tokens** and create a project token
-2. In your GitHub repo, go to **Settings > Secrets and variables > Actions**
-3. Add this secret:
-
-| Secret | Value |
-|--------|-------|
-| `RAILWAY_TOKEN` | Your Railway project token |
-
-Now every push to `main` automatically deploys both services.
+```
+deploy/
+├── docchat-backend/       # FastAPI backend
+│   ├── Chart.yaml
+│   ├── values.yaml        # Image, resources, ingress (docchat-api.rivestack.io)
+│   └── templates/
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       └── ingress.yaml
+│
+└── docchat-frontend/      # Nuxt.js frontend
+    ├── Chart.yaml
+    ├── values.yaml        # Image, resources, ingress (docchat.rivestack.io)
+    └── templates/
+        ├── deployment.yaml
+        ├── service.yaml
+        └── ingress.yaml
+```
 
 ---
 
@@ -136,24 +140,6 @@ docker compose up --build
 
 ---
 
-## GitHub Actions CI/CD
-
-The repo includes a deploy workflow at `.github/workflows/deploy.yml` that:
-
-1. Triggers on every push to `main`
-2. Deploys the **backend** service to Railway
-3. Deploys the **frontend** service to Railway (after backend succeeds)
-
-### Required GitHub Secrets
-
-| Secret | Where to get it |
-|--------|----------------|
-| `RAILWAY_TOKEN` | Railway Dashboard > Account Settings > Tokens |
-
-The `DATABASE_URL` and `OPENAI_API_KEY` are set directly in Railway's dashboard (not in GitHub secrets), so they stay in Railway's secure environment.
-
----
-
 ## How It Works
 
 ```
@@ -179,10 +165,13 @@ Ask a question
 ```
 rag-starter/
 ├── .github/workflows/
-│   └── deploy.yml             # GitHub Actions -> Railway deploy
+│   ├── build.yml              # Build Docker images -> GHCR
+│   └── deploy.yml             # Helm deploy to K8s (rivestack-demo ns)
+├── deploy/
+│   ├── docchat-backend/       # Helm chart for backend
+│   └── docchat-frontend/      # Helm chart for frontend
 ├── backend/
 │   ├── Dockerfile
-│   ├── railway.toml           # Railway build config
 │   ├── app/
 │   │   ├── main.py            # FastAPI app with CORS and auto-migration
 │   │   ├── config.py          # Environment settings
@@ -201,7 +190,6 @@ rag-starter/
 │
 ├── frontend/
 │   ├── Dockerfile
-│   ├── railway.toml           # Railway build config
 │   ├── pages/index.vue        # Split-screen layout
 │   ├── components/
 │   │   ├── PdfViewer.vue      # PDF renderer with highlight overlays
@@ -218,7 +206,7 @@ rag-starter/
 
 ---
 
-Built with [Rivestack](https://rivestack.com) and deployed on [Railway](https://railway.com?referralCode=rivestack).
+Built with [Rivestack](https://rivestack.com).
 
 ## License
 

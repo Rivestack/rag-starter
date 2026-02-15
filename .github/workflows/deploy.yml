@@ -1,37 +1,84 @@
-name: Deploy to Railway
+name: Deploy to Kubernetes
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Build & Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - main
 
 jobs:
-  deploy-backend:
-    name: Deploy Backend
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.1
 
-      - name: Deploy Backend
-        run: railway up --service backend --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        working-directory: ./backend
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
 
-  deploy-frontend:
-    name: Deploy Frontend
-    runs-on: ubuntu-latest
-    needs: deploy-backend
-    steps:
-      - uses: actions/checkout@v4
+      - name: Setup kubeconfig
+        run: |
+          echo "${{ secrets.PRD_KUBECONFIG }}" > kubeconfig.yaml
+          chmod 600 kubeconfig.yaml
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace rivestack-demo --dry-run=client -o yaml | \
+            kubectl apply -f - --kubeconfig kubeconfig.yaml
 
-      - name: Deploy Frontend
-        run: railway up --service frontend --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        working-directory: ./frontend
+      - name: Create app secrets
+        run: |
+          kubectl create secret generic docchat-backend-config \
+            --from-literal=DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            --from-literal=OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+            --namespace rivestack-demo \
+            --dry-run=client -o yaml | \
+            kubectl apply -f - --kubeconfig kubeconfig.yaml
+
+      - name: Create frontend secrets
+        run: |
+          kubectl create secret generic docchat-frontend-config \
+            --from-literal=NUXT_PUBLIC_API_BASE="https://docchat-api.rivestack.io" \
+            --namespace rivestack-demo \
+            --dry-run=client -o yaml | \
+            kubectl apply -f - --kubeconfig kubeconfig.yaml
+
+      - name: Create GHCR pull secret
+        run: |
+          kubectl create secret docker-registry ghcr \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GH_TOKEN }} \
+            --namespace rivestack-demo \
+            --dry-run=client -o yaml | \
+            kubectl apply -f - --kubeconfig kubeconfig.yaml
+
+      - name: Deploy backend
+        run: |
+          helm upgrade docchat-backend ./deploy/docchat-backend \
+            --install \
+            --atomic \
+            --timeout 10m \
+            --namespace rivestack-demo \
+            --set image.tag=${{ github.event.workflow_run.head_sha }} \
+            --kubeconfig kubeconfig.yaml
+
+      - name: Deploy frontend
+        run: |
+          helm upgrade docchat-frontend ./deploy/docchat-frontend \
+            --install \
+            --atomic \
+            --timeout 10m \
+            --namespace rivestack-demo \
+            --set image.tag=${{ github.event.workflow_run.head_sha }} \
+            --kubeconfig kubeconfig.yaml

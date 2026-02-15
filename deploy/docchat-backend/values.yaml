@@ -1,0 +1,38 @@
+replicaCount: 1
+
+secret: docchat-backend-config
+
+image:
+  repository: ghcr.io/rivestack/rag-starter/backend
+  tag: latest
+  pullPolicy: Always
+
+resources:
+  limits:
+    cpu: '500m'
+    memory: '512Mi'
+  requests:
+    cpu: '250m'
+    memory: '256Mi'
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: '50m'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
+  hosts:
+    - host: docchat-api.rivestack.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - docchat-api.rivestack.io
+      secretName: docchat-backend-tls-prod
