@@ -1,13 +1,20 @@
+import asyncio
 import re
 import logging
 import time
 from datetime import datetime, timezone, timedelta
 
+import httpx
 from sqlalchemy import select, delete
 
 from app.database import async_session
 from app.models import Story, Chunk
-from app.services.hn_client import fetch_stories_by_date_range, HNStory
+from app.services.hn_client import (
+    fetch_story_ids_in_range,
+    parse_story_from_hit,
+    fetch_comments_for_story,
+    HNStory,
+)
 from app.services.embeddings import generate_embeddings
 from app.config import settings
 
@@ -58,46 +65,75 @@ def _create_chunks_for_story(story: HNStory) -> list[dict]:
     return chunks
 
 
-async def ingest_date_range(start_dt: datetime, end_dt: datetime) -> dict:
-    """Fetch and ingest HN stories for a date range."""
+async def _get_existing_hn_ids(hn_ids: list[int]) -> set[int]:
+    """Check which hn_ids already exist in the database."""
+    if not hn_ids:
+        return set()
+    async with async_session() as session:
+        result = await session.execute(
+            select(Story.hn_id).where(Story.hn_id.in_(hn_ids))
+        )
+        return set(result.scalars().all())
+
+
+async def ingest_one_day(day_start: datetime, day_end: datetime) -> dict:
+    """Ingest stories for a single day. Returns counts."""
     start_time = time.time()
 
-    stories = await fetch_stories_by_date_range(
-        start_timestamp=int(start_dt.timestamp()),
-        end_timestamp=int(end_dt.timestamp()),
-        min_score=settings.hn_min_score,
-        max_comments_per_story=settings.hn_max_comments_per_story,
-    )
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # 1. Fetch story metadata (fast, no comments)
+        hits = await fetch_story_ids_in_range(
+            client,
+            start_timestamp=int(day_start.timestamp()),
+            end_timestamp=int(day_end.timestamp()),
+            min_score=settings.hn_min_score,
+        )
+        logger.info(f"Day {day_start.date()}: found {len(hits)} stories from API")
 
+        if not hits:
+            return {"stories_fetched": 0, "chunks_created": 0}
+
+        # 2. Parse stories and filter out existing ones
+        parsed = [parse_story_from_hit(h) for h in hits]
+        hn_ids = [s.hn_id for s in parsed]
+        existing_ids = await _get_existing_hn_ids(hn_ids)
+        new_stories = [s for s in parsed if s.hn_id not in existing_ids]
+
+        logger.info(f"Day {day_start.date()}: {len(new_stories)} new stories (skipping {len(existing_ids)} existing)")
+
+        if not new_stories:
+            return {"stories_fetched": 0, "chunks_created": 0}
+
+        # 3. Fetch comments concurrently (only for new stories)
+        comment_tasks = [
+            fetch_comments_for_story(client, s.hn_id, settings.hn_max_comments_per_story)
+            for s in new_stories
+        ]
+        all_comments = await asyncio.gather(*comment_tasks)
+        for story, comments in zip(new_stories, all_comments):
+            story.comments = comments
+
+    # 4. Store stories and generate embeddings
     stories_created = 0
     chunks_created = 0
 
     async with async_session() as session:
-        for hn_story in stories:
-            # Check if story already exists
-            existing = await session.execute(
-                select(Story.id).where(Story.hn_id == hn_story.hn_id)
-            )
-            if existing.scalar_one_or_none():
-                continue
-
-            # Create story
+        for story in new_stories:
             db_story = Story(
-                hn_id=hn_story.hn_id,
-                title=hn_story.title,
-                url=hn_story.url,
-                author=hn_story.author,
-                score=hn_story.score,
-                num_comments=hn_story.num_comments,
-                story_text=hn_story.story_text,
-                story_type=hn_story.story_type,
-                created_at=hn_story.created_at,
+                hn_id=story.hn_id,
+                title=story.title,
+                url=story.url,
+                author=story.author,
+                score=story.score,
+                num_comments=story.num_comments,
+                story_text=story.story_text,
+                story_type=story.story_type,
+                created_at=story.created_at,
             )
             session.add(db_story)
             await session.flush()
 
-            # Create chunks
-            chunk_defs = _create_chunks_for_story(hn_story)
+            chunk_defs = _create_chunks_for_story(story)
             if not chunk_defs:
                 continue
 
@@ -124,25 +160,44 @@ async def ingest_date_range(start_dt: datetime, end_dt: datetime) -> dict:
             chunks_created += len(chunk_defs)
 
             if stories_created % 25 == 0:
-                logger.info(f"Ingested {stories_created} stories, {chunks_created} chunks so far...")
                 await session.commit()
+                logger.info(f"Day {day_start.date()}: committed {stories_created} stories, {chunks_created} chunks")
 
         await session.commit()
 
     duration = time.time() - start_time
-    logger.info(f"Ingestion complete: {stories_created} stories, {chunks_created} chunks in {duration:.1f}s")
-    return {
-        "stories_fetched": stories_created,
-        "chunks_created": chunks_created,
-        "duration_seconds": round(duration, 2),
-    }
+    logger.info(f"Day {day_start.date()}: done — {stories_created} stories, {chunks_created} chunks in {duration:.1f}s")
+    return {"stories_fetched": stories_created, "chunks_created": chunks_created}
 
 
 async def ingest_initial():
-    """Fetch 30 days of stories."""
+    """Fetch 30 days of stories, one day at a time."""
+    total_stories = 0
+    total_chunks = 0
+    start_time = time.time()
+
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(days=settings.hn_days_to_keep)
-    return await ingest_date_range(start_dt, end_dt)
+
+    # Process day by day (most recent first)
+    current = end_dt
+    while current > start_dt:
+        day_start = max(current - timedelta(days=1), start_dt)
+        day_end = current
+
+        result = await ingest_one_day(day_start, day_end)
+        total_stories += result["stories_fetched"]
+        total_chunks += result["chunks_created"]
+
+        current = day_start
+
+    duration = time.time() - start_time
+    logger.info(f"Initial ingest complete: {total_stories} stories, {total_chunks} chunks in {duration:.1f}s")
+    return {
+        "stories_fetched": total_stories,
+        "chunks_created": total_chunks,
+        "duration_seconds": round(duration, 2),
+    }
 
 
 async def ingest_daily():
@@ -150,7 +205,7 @@ async def ingest_daily():
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(hours=25)  # 25h overlap for safety
 
-    result = await ingest_date_range(start_dt, end_dt)
+    result = await ingest_one_day(start_dt, end_dt)
 
     # Clean up old stories (cascade deletes chunks)
     cutoff = end_dt - timedelta(days=settings.hn_days_to_keep)
@@ -161,4 +216,8 @@ async def ingest_daily():
         await session.commit()
         logger.info(f"Pruned {deleted.rowcount} stories older than {cutoff.date()}")
 
-    return result
+    return {
+        "stories_fetched": result["stories_fetched"],
+        "chunks_created": result["chunks_created"],
+        "duration_seconds": 0,
+    }
