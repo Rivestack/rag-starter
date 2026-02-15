@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Zap, Clock, Layers, Search } from 'lucide-vue-next'
+import { Zap, Clock, Layers, Search, Info } from 'lucide-vue-next'
 import type { PerformanceStats } from '@/types'
 
 defineProps<{
@@ -33,6 +33,10 @@ defineProps<{
     <span class="flex items-center gap-1.5">
       <Layers class="h-3 w-3" />
       {{ performance.index_type.toUpperCase() }} / {{ performance.similarity_metric }}
+    </span>
+    <span class="flex items-center gap-1.5 ml-auto text-[10px] opacity-70">
+      <Info class="h-3 w-3" />
+      Running on a shared Rivestack instance — dedicated instances deliver significantly faster performance
     </span>
   </div>
 </template>
