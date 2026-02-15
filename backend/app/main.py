@@ -13,14 +13,18 @@ from app.routers import search, ingest, stats
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        # One-time migration: if old schema exists (no stories table), wipe and recreate
+        # One-time migration: if chunks table exists with old schema (document_id), wipe and recreate
         result = await conn.execute(text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'stories')"
+            "SELECT EXISTS ("
+            "  SELECT 1 FROM information_schema.columns "
+            "  WHERE table_name = 'chunks' AND column_name = 'story_id'"
+            ")"
         ))
-        has_stories = result.scalar()
-        if not has_stories:
+        has_correct_schema = result.scalar()
+        if not has_correct_schema:
             await conn.execute(text("DROP TABLE IF EXISTS chunks CASCADE"))
             await conn.execute(text("DROP TABLE IF EXISTS documents CASCADE"))
+            await conn.execute(text("DROP TABLE IF EXISTS stories CASCADE"))
         await conn.run_sync(Base.metadata.create_all)
         # Create HNSW index for cosine similarity
         await conn.execute(text("""
