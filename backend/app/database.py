@@ -26,11 +26,8 @@ def _build_async_url(raw_url: str) -> tuple[str, dict]:
 
     connect_args: dict = {}
     if sslmode and sslmode != "disable":
-        # asyncpg expects an ssl.SSLContext
-        # Use check_hostname=False for managed DB services with internal CAs
+        # asyncpg expects an ssl.SSLContext instead of sslmode query param
         ctx = ssl_module.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl_module.CERT_NONE
         connect_args["ssl"] = ctx
 
     return new_url, connect_args
