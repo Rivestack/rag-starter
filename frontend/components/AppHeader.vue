@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, Upload, Trash2 } from 'lucide-vue-next'
+import { FileText, Upload, Trash2, Sparkles } from 'lucide-vue-next'
 import type { Document } from '~/types'
 
 const props = defineProps<{
@@ -22,35 +22,38 @@ function formatFileSize(bytes: number) {
 </script>
 
 <template>
-  <header class="h-14 border-b bg-white flex items-center px-4 gap-3 shrink-0">
+  <header class="h-16 border-b bg-white/80 backdrop-blur-sm flex items-center px-5 gap-4 shrink-0">
     <!-- Logo -->
-    <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-        <FileText class="w-4 h-4 text-white" />
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-purple-400 flex items-center justify-center shadow-sm shadow-primary/25">
+        <Sparkles class="w-4.5 h-4.5 text-white" />
       </div>
-      <h1 class="text-lg font-semibold tracking-tight">DocChat</h1>
+      <div>
+        <h1 class="text-base font-bold tracking-tight leading-none">DocChat</h1>
+        <p class="text-[10px] text-muted-foreground font-medium">by Rivestack</p>
+      </div>
     </div>
 
-    <div class="h-6 w-px bg-border mx-1" />
+    <div class="h-8 w-px bg-border mx-1" />
 
     <!-- Document tabs -->
     <div class="flex items-center gap-1.5 flex-1 overflow-x-auto">
       <button
         v-for="doc in documents"
         :key="doc.id"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors whitespace-nowrap group"
+        class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-200 whitespace-nowrap group"
         :class="
           activeDocumentId === doc.id
-            ? 'bg-primary/10 text-primary font-medium'
-            : 'text-muted-foreground hover:bg-muted'
+            ? 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/20'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
         "
         @click="emit('selectDocument', doc.id)"
       >
         <FileText class="w-3.5 h-3.5 shrink-0" />
-        <span class="max-w-[150px] truncate">{{ doc.filename }}</span>
-        <span class="text-[10px] text-muted-foreground">{{ formatFileSize(doc.file_size) }}</span>
+        <span class="max-w-[160px] truncate">{{ doc.filename }}</span>
+        <span class="text-[10px] opacity-60">{{ formatFileSize(doc.file_size) }}</span>
         <button
-          class="ml-1 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+          class="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-destructive transition-all duration-200"
           @click.stop="emit('deleteDocument', doc.id)"
         >
           <Trash2 class="w-3 h-3" />
@@ -62,6 +65,7 @@ function formatFileSize(bytes: number) {
     <Button
       size="sm"
       :disabled="isUploading"
+      class="rounded-xl shadow-sm shadow-primary/25"
       @click="emit('uploadClick')"
     >
       <Upload class="w-4 h-4" />

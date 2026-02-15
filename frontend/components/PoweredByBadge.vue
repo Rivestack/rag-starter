@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { Database } from 'lucide-vue-next'
 </script>
 
 <template>
-  <div class="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground">
-    <Database class="w-3 h-3" />
-    <span>Powered by</span>
+  <div class="flex items-center justify-center gap-2 py-2.5 border-t bg-muted/20">
+    <span class="text-[11px] text-muted-foreground font-medium">Powered by</span>
     <a
       href="https://rivestack.com"
       target="_blank"
-      class="font-semibold text-primary hover:underline"
+      class="inline-flex items-center"
     >
-      Rivestack
+      <RivestackLogo class="h-4" color="hsl(271 76% 53%)" />
     </a>
-    <span>— pgvector on PostgreSQL</span>
   </div>
 </template>

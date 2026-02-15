@@ -14,11 +14,11 @@ const emit = defineEmits<{
 
 <template>
   <button
-    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium transition-all cursor-pointer"
+    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer"
     :class="
       isActive
-        ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 shadow-sm'
-        : 'bg-muted text-muted-foreground hover:bg-yellow-50 hover:text-yellow-700 border border-transparent'
+        ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/25'
+        : 'bg-primary/10 text-primary hover:bg-primary/20'
     "
     :title="source.content"
     @click="emit('click')"

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     chunk_size: int = 512
     chunk_overlap: int = 64
     top_k: int = 5
-    similarity_threshold: float = 0.3
+    similarity_threshold: float = 0.1
     max_file_size_mb: int = 50
 
     model_config = {"env_file": ".env"}
