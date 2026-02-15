@@ -6,7 +6,7 @@
     <div class="flex items-center justify-center gap-2 text-xs text-muted-foreground">
       <span>Powered by</span>
       <a
-        href="https://rivestack.com"
+        href="https://rivestack.io"
         target="_blank"
         class="inline-flex items-center gap-1.5 font-semibold text-foreground hover:text-primary transition-colors"
       >

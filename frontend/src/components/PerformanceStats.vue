@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Zap, Database, Clock, Layers, Search } from 'lucide-vue-next'
+import { Zap, Clock, Layers, Search } from 'lucide-vue-next'
 import type { PerformanceStats } from '@/types'
 
 defineProps<{
@@ -23,7 +23,7 @@ defineProps<{
       {{ performance.embedding_time_ms.toFixed(0) }}ms embedding
     </span>
     <span class="flex items-center gap-1.5">
-      <Database class="h-3 w-3" />
+      <img src="/vector-icon.png" alt="Vector" class="h-3 w-3" />
       {{ performance.chunks_searched.toLocaleString() }} chunks searched
     </span>
     <span class="flex items-center gap-1.5">

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Database } from 'lucide-vue-next'
 import SearchBox from '@/components/SearchBox.vue'
 import SearchResults from '@/components/SearchResults.vue'
 import PerformanceStats from '@/components/PerformanceStats.vue'
@@ -39,7 +38,7 @@ fetchStats()
       <!-- Hero (before first search) -->
       <div v-if="!hasSearched && !isSearching" class="flex flex-col items-center gap-4 pt-16 pb-8">
         <div class="flex items-center justify-center h-16 w-16 rounded-2xl bg-primary/10">
-          <Database class="h-8 w-8 text-primary" />
+          <img src="/vector-icon.png" alt="Vector" class="h-8 w-8" />
         </div>
         <div class="text-center">
           <h2 class="text-2xl font-bold tracking-tight">Search Hacker News</h2>
