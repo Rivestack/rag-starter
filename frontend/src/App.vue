@@ -14,6 +14,12 @@ const { stats, fetchStats } = useStats()
 
 const hasSearched = computed(() => performance.value !== null)
 
+function goHome() {
+  query.value = ''
+  results.value = []
+  performance.value = null
+}
+
 fetchStats()
 </script>
 
@@ -21,15 +27,15 @@ fetchStats()
   <div class="min-h-screen flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between px-6 py-4">
-      <div class="flex items-center gap-3">
+      <button class="flex items-center gap-3 cursor-pointer" @click="goHome">
         <div class="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
           <img src="/logo.svg" alt="Rivestack" class="h-5 w-5" />
         </div>
-        <div>
+        <div class="text-left">
           <h1 class="text-lg font-bold tracking-tight leading-none">Ask HN</h1>
           <p class="text-[11px] text-muted-foreground font-medium">Semantic Search</p>
         </div>
-      </div>
+      </button>
       <ThemeToggle />
     </header>
 
