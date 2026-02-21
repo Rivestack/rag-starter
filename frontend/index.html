@@ -2,10 +2,70 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ask HN — Semantic Search | Rivestack</title>
+
+    <title>Ask HN — Semantic Search over Hacker News | Rivestack</title>
+    <meta name="description" content="Semantic search over 30 days of Hacker News stories and comments. Powered by Rivestack pgvector and OpenAI embeddings." />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://ask.rivestack.io/" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/vector-icon.png" />
+    <link rel="apple-touch-icon" href="/vector-icon.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ask.rivestack.io/" />
+    <meta property="og:title" content="Ask HN — Semantic Search over Hacker News" />
+    <meta property="og:description" content="Semantic search over 30 days of Hacker News stories and comments. Powered by Rivestack pgvector and OpenAI embeddings." />
+    <meta property="og:image" content="https://ask.rivestack.io/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Rivestack" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ask HN — Semantic Search over Hacker News" />
+    <meta name="twitter:description" content="Semantic search over 30 days of Hacker News stories and comments. Powered by Rivestack pgvector and OpenAI embeddings." />
+    <meta name="twitter:image" content="https://ask.rivestack.io/og.png" />
+
+    <!-- Additional SEO -->
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#1936FE" />
+    <meta name="author" content="Rivestack" />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.fontshare.com" />
+
+    <!-- Fonts -->
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,800&display=swap" rel="stylesheet">
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Ask HN",
+      "url": "https://ask.rivestack.io",
+      "description": "Semantic search over 30 days of Hacker News stories and comments, powered by Rivestack pgvector and OpenAI embeddings.",
+      "applicationCategory": "SearchApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "creator": {
+        "@type": "Organization",
+        "name": "Rivestack",
+        "url": "https://rivestack.io"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="app"></div>
