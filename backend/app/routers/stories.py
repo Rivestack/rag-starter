@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from sqlalchemy import select, text as sql_text
@@ -5,6 +7,8 @@ from sqlalchemy import select, text as sql_text
 from app.database import async_session
 from app.models import Story, Chunk
 from app.schemas import StoryDetail, StoryChunk, RelatedStory, StorySummary
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["stories"])
 
@@ -48,8 +52,16 @@ async def get_story(slug: str):
 @router.get("/stories/{slug}/related", response_model=list[RelatedStory])
 async def get_related_stories(slug: str, limit: int = 5):
     """Find related stories using pgvector similarity on the title chunk."""
+    try:
+        return await _get_related_stories(slug, limit)
+    except Exception as e:
+        logger.error(f"Related stories failed for {slug}: {type(e).__name__}: {e}")
+        raise
+
+
+async def _get_related_stories(slug: str, limit: int) -> list[RelatedStory]:
     async with async_session() as session:
-        # Get the story and its title chunk embedding
+        # Get the story
         result = await session.execute(
             select(Story).where(Story.slug == slug)
         )
@@ -57,19 +69,8 @@ async def get_related_stories(slug: str, limit: int = 5):
         if not story:
             raise HTTPException(status_code=404, detail="Story not found")
 
-        # Get the title chunk's embedding as raw float array via SQL
-        title_chunk = await session.execute(
-            sql_text(
-                "SELECT embedding::text FROM chunks "
-                "WHERE story_id = :story_id AND chunk_type = 'title' LIMIT 1"
-            ),
-            {"story_id": str(story.id)},
-        )
-        embedding_str = title_chunk.scalar_one_or_none()
-        if embedding_str is None:
-            return []
-
-        # Find similar stories by their title chunks, excluding self
+        # Find similar stories using a subquery for the embedding
+        # This avoids serialization issues by keeping everything in SQL
         result = await session.execute(
             sql_text("""
                 SELECT
@@ -78,17 +79,21 @@ async def get_related_stories(slug: str, limit: int = 5):
                     s.author,
                     s.score,
                     s.created_at,
-                    1 - (c.embedding <=> :query_vec::vector) AS similarity_score
+                    1 - (c.embedding <=> ref.embedding) AS similarity_score
                 FROM chunks c
                 JOIN stories s ON c.story_id = s.id
+                CROSS JOIN (
+                    SELECT embedding FROM chunks
+                    WHERE story_id = :story_id AND chunk_type = 'title'
+                    LIMIT 1
+                ) ref
                 WHERE c.chunk_type = 'title'
                   AND s.id != :story_id
-                  AND 1 - (c.embedding <=> :query_vec::vector) > 0.3
-                ORDER BY c.embedding <=> :query_vec::vector
+                  AND 1 - (c.embedding <=> ref.embedding) > 0.3
+                ORDER BY c.embedding <=> ref.embedding
                 LIMIT :limit
             """),
             {
-                "query_vec": embedding_str,
                 "story_id": str(story.id),
                 "limit": limit,
             },
