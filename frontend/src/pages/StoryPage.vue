@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { ExternalLink, User, ArrowUp, Calendar, MessageSquare, Search } from 'lucide-vue-next'
+import { ExternalLink, User, ArrowUp, Calendar, MessageSquare, Zap } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import SearchBox from '@/components/SearchBox.vue'
 import type { StoryDetail, RelatedStory } from '@/types'
@@ -13,6 +13,8 @@ const API_BASE = (window as any).env?.VITE_API_BASE || import.meta.env.VITE_API_
 const route = useRoute()
 const story = ref<StoryDetail | null>(null)
 const related = ref<RelatedStory[]>([])
+const relatedTimeMs = ref(0)
+const chunksSearched = ref(0)
 const isLoading = ref(true)
 const notFound = ref(false)
 const searchQuery = ref('')
@@ -58,7 +60,12 @@ async function fetchStory() {
   // Fetch related stories independently — never block page render
   try {
     const relatedRes = await fetch(`${API_BASE}/api/stories/${slug.value}/related`)
-    related.value = relatedRes.ok ? await relatedRes.json() : []
+    if (relatedRes.ok) {
+      const data = await relatedRes.json()
+      related.value = data.results ?? []
+      relatedTimeMs.value = data.query_time_ms ?? 0
+      chunksSearched.value = data.chunks_searched ?? 0
+    }
   } catch {
     related.value = []
   }
@@ -143,7 +150,7 @@ onMounted(fetchStory)
       </CardContent>
     </Card>
 
-    <!-- Discussion Summary -->
+    <!-- Discussion Highlights -->
     <section v-if="comments.length > 0" class="mb-8">
       <h2 class="text-lg font-semibold mb-3">Discussion Highlights</h2>
       <div class="flex flex-col gap-3">
@@ -160,8 +167,13 @@ onMounted(fetchStory)
 
     <!-- Related Stories -->
     <section v-if="related.length > 0" class="mb-8">
-      <h2 class="text-lg font-semibold mb-3">Related Discussions</h2>
-      <p class="text-xs text-muted-foreground mb-3">Found via pgvector semantic similarity</p>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">Related Discussions</h2>
+        <Badge v-if="relatedTimeMs > 0" variant="secondary" class="text-[10px] tabular-nums gap-1">
+          <Zap class="h-3 w-3" />
+          {{ relatedTimeMs.toFixed(0) }}ms across {{ chunksSearched.toLocaleString() }} embeddings
+        </Badge>
+      </div>
       <div class="flex flex-col gap-2">
         <RouterLink
           v-for="r in related"

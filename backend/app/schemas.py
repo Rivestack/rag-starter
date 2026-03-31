@@ -78,6 +78,12 @@ class RelatedStory(BaseModel):
     similarity_score: float
 
 
+class RelatedStoriesResponse(BaseModel):
+    results: list[RelatedStory]
+    query_time_ms: float
+    chunks_searched: int
+
+
 class StorySummary(BaseModel):
     slug: str
     title: str

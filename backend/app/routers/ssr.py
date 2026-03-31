@@ -1,5 +1,6 @@
 import html
 import logging
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Request
@@ -25,9 +26,16 @@ def _format_date(dt: datetime) -> str:
     return dt.strftime("%B %d, %Y")
 
 
-async def _fetch_related(story_id: str, limit: int = 5) -> list[dict]:
+async def _fetch_related(story_id: str, limit: int = 5) -> dict:
+    """Returns {"stories": [...], "query_time_ms": float, "chunks_searched": int}."""
     try:
         async with async_session() as session:
+            count_result = await session.execute(
+                sql_text("SELECT COUNT(*) FROM chunks WHERE chunk_type = 'title'")
+            )
+            chunks_searched = count_result.scalar() or 0
+
+            start = time.time()
             result = await session.execute(
                 sql_text("""
                     SELECT
@@ -46,7 +54,9 @@ async def _fetch_related(story_id: str, limit: int = 5) -> list[dict]:
                 """),
                 {"story_id": story_id, "limit": limit},
             )
-            return [
+            query_time_ms = (time.time() - start) * 1000
+
+            stories = [
                 {
                     "slug": r.slug,
                     "title": r.title,
@@ -57,9 +67,10 @@ async def _fetch_related(story_id: str, limit: int = 5) -> list[dict]:
                 }
                 for r in result.fetchall()
             ]
+            return {"stories": stories, "query_time_ms": round(query_time_ms, 1), "chunks_searched": chunks_searched}
     except Exception as e:
         logger.error(f"SSR related stories failed: {e}")
-        return []
+        return {"stories": [], "query_time_ms": 0, "chunks_searched": 0}
 
 
 @router.get("/story/{slug}", response_class=HTMLResponse)
@@ -88,7 +99,15 @@ async def ssr_story_page(slug: str, request: Request):
         )
         chunks = chunks_result.fetchall()
 
-    related = await _fetch_related(str(story.id))
+    related_data = await _fetch_related(str(story.id))
+    related = related_data["stories"]
+    related_time_ms = related_data["query_time_ms"]
+    chunks_searched = related_data["chunks_searched"]
+
+    # Get total stories count for the footer
+    async with async_session() as session:
+        total_stories = (await session.execute(sql_text("SELECT COUNT(*) FROM stories"))).scalar() or 0
+        total_chunks = (await session.execute(sql_text("SELECT COUNT(*) FROM chunks"))).scalar() or 0
 
     comments = [c for c in chunks if c.chunk_type == "comment"]
     story_text = next((c for c in chunks if c.chunk_type == "story_text"), None)
@@ -139,7 +158,8 @@ async def ssr_story_page(slug: str, request: Request):
         related_html = (
             '<section class="related">'
             '<h2>Related Discussions</h2>'
-            '<p class="meta">Found via pgvector semantic similarity</p>'
+            f'<p class="meta">Found {len(related)} related stories in {related_time_ms}ms '
+            f'across {chunks_searched:,} title embeddings via pgvector HNSW</p>'
             f'<ul>{"".join(items)}</ul>'
             '</section>'
         )
@@ -220,6 +240,7 @@ h1 {{ font-size: 1.5rem; line-height: 1.3; margin-bottom: 8px; }}
 </article>
 <div class="cta">
 Semantic search powered by <a href="https://rivestack.io"><strong>Rivestack pgvector</strong></a>
+<br><span class="meta">{total_stories:,} stories · {total_chunks:,} chunks indexed</span>
 </div>
 </body>
 </html>"""

@@ -1,4 +1,5 @@
 import logging
+import time
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -6,7 +7,7 @@ from sqlalchemy import select, text as sql_text
 
 from app.database import async_session
 from app.models import Story, Chunk
-from app.schemas import StoryDetail, StoryChunk, RelatedStory, StorySummary
+from app.schemas import StoryDetail, StoryChunk, RelatedStory, RelatedStoriesResponse, StorySummary
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ async def get_story(slug: str):
         )
 
 
-@router.get("/stories/{slug}/related", response_model=list[RelatedStory])
+@router.get("/stories/{slug}/related", response_model=RelatedStoriesResponse)
 async def get_related_stories(slug: str, limit: int = 5):
     """Find related stories using pgvector similarity on the title chunk."""
     try:
@@ -59,7 +60,7 @@ async def get_related_stories(slug: str, limit: int = 5):
         raise
 
 
-async def _get_related_stories(slug: str, limit: int) -> list[RelatedStory]:
+async def _get_related_stories(slug: str, limit: int) -> RelatedStoriesResponse:
     async with async_session() as session:
         # Get the story
         result = await session.execute(
@@ -69,8 +70,14 @@ async def _get_related_stories(slug: str, limit: int) -> list[RelatedStory]:
         if not story:
             raise HTTPException(status_code=404, detail="Story not found")
 
+        # Count total title chunks searched
+        count_result = await session.execute(
+            sql_text("SELECT COUNT(*) FROM chunks WHERE chunk_type = 'title'")
+        )
+        chunks_searched = count_result.scalar() or 0
+
         # Find similar stories using a subquery for the embedding
-        # This avoids serialization issues by keeping everything in SQL
+        start = time.time()
         result = await session.execute(
             sql_text("""
                 SELECT
@@ -98,8 +105,9 @@ async def _get_related_stories(slug: str, limit: int) -> list[RelatedStory]:
                 "limit": limit,
             },
         )
+        query_time_ms = (time.time() - start) * 1000
 
-        return [
+        stories = [
             RelatedStory(
                 slug=row.slug,
                 title=row.title,
@@ -110,6 +118,12 @@ async def _get_related_stories(slug: str, limit: int) -> list[RelatedStory]:
             )
             for row in result.fetchall()
         ]
+
+        return RelatedStoriesResponse(
+            results=stories,
+            query_time_ms=round(query_time_ms, 2),
+            chunks_searched=chunks_searched,
+        )
 
 
 @router.get("/stories", response_model=list[StorySummary])
