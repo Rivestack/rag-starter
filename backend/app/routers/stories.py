@@ -57,18 +57,17 @@ async def get_related_stories(slug: str, limit: int = 5):
         if not story:
             raise HTTPException(status_code=404, detail="Story not found")
 
-        # Get the title chunk's embedding for this story
+        # Get the title chunk's embedding as raw float array via SQL
         title_chunk = await session.execute(
-            select(Chunk.embedding)
-            .where(Chunk.story_id == story.id, Chunk.chunk_type == "title")
-            .limit(1)
+            sql_text(
+                "SELECT embedding::text FROM chunks "
+                "WHERE story_id = :story_id AND chunk_type = 'title' LIMIT 1"
+            ),
+            {"story_id": str(story.id)},
         )
-        embedding_row = title_chunk.scalar_one_or_none()
-        if embedding_row is None:
+        embedding_str = title_chunk.scalar_one_or_none()
+        if embedding_str is None:
             return []
-
-        # Convert pgvector value to string format for raw SQL
-        embedding_str = str(list(embedding_row)) if not isinstance(embedding_row, str) else embedding_row
 
         # Find similar stories by their title chunks, excluding self
         result = await session.execute(
@@ -79,13 +78,13 @@ async def get_related_stories(slug: str, limit: int = 5):
                     s.author,
                     s.score,
                     s.created_at,
-                    1 - (c.embedding <=> :query_vec) AS similarity_score
+                    1 - (c.embedding <=> :query_vec::vector) AS similarity_score
                 FROM chunks c
                 JOIN stories s ON c.story_id = s.id
                 WHERE c.chunk_type = 'title'
                   AND s.id != :story_id
-                  AND 1 - (c.embedding <=> :query_vec) > 0.3
-                ORDER BY c.embedding <=> :query_vec
+                  AND 1 - (c.embedding <=> :query_vec::vector) > 0.3
+                ORDER BY c.embedding <=> :query_vec::vector
                 LIMIT :limit
             """),
             {
