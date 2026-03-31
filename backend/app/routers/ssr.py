@@ -125,9 +125,10 @@ async def ssr_story_page(slug: str, request: Request):
     if comments:
         items = []
         for c in comments:
-            author_html = f'<strong>{_esc(c.author)}:</strong> ' if c.author else ""
+            author_html = f'<p class="comment-author">{_esc(c.author)}</p>' if c.author else ""
             items.append(
-                f'<div class="comment">{author_html}{_esc(html.unescape(c.content))}</div>'
+                f'<div class="comment">{author_html}'
+                f'<p class="comment-body">{_esc(html.unescape(c.content))}</p></div>'
             )
         comments_html = (
             '<section class="comments">'
@@ -214,7 +215,10 @@ a:hover {{ text-decoration: underline; }}
 h1 {{ font-size: 1.5rem; line-height: 1.3; margin-bottom: 8px; }}
 .meta {{ color: #666; font-size: 0.85rem; }}
 .header-meta {{ display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }}
-.comment {{ background: #f8f8f8; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; font-size: 0.9rem; }}
+.comment {{ padding: 12px 0; border-bottom: 1px solid #e5e5e5; font-size: 0.9rem; }}
+.comment:last-child {{ border-bottom: none; }}
+.comment-author {{ font-size: 0.75rem; font-weight: 500; color: #666; margin: 0 0 4px 0; }}
+.comment-body {{ margin: 0; }}
 .story-text {{ background: #f0f4ff; border-radius: 8px; padding: 16px; margin: 16px 0; font-size: 0.9rem; }}
 .related ul {{ list-style: none; padding: 0; }}
 .related li {{ padding: 8px 12px; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 6px; }}

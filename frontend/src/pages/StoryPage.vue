@@ -153,15 +153,11 @@ onMounted(fetchStory)
     <!-- Discussion Highlights -->
     <section v-if="comments.length > 0" class="mb-8">
       <h2 class="text-lg font-semibold mb-3">Discussion Highlights</h2>
-      <div class="flex flex-col gap-3">
-        <Card v-for="(chunk, i) in comments" :key="i">
-          <CardContent class="pt-4 pb-4">
-            <p class="text-sm leading-relaxed">
-              <span v-if="chunk.author" class="font-medium text-foreground">{{ chunk.author }}:</span>
-              {{ ' ' }}{{ decodeHtml(chunk.content) }}
-            </p>
-          </CardContent>
-        </Card>
+      <div class="flex flex-col gap-0 divide-y">
+        <div v-for="(chunk, i) in comments" :key="i" class="py-3 first:pt-0">
+          <p v-if="chunk.author" class="text-xs font-medium text-muted-foreground mb-1">{{ chunk.author }}</p>
+          <p class="text-sm leading-relaxed text-foreground">{{ decodeHtml(chunk.content) }}</p>
+        </div>
       </div>
     </section>
 
