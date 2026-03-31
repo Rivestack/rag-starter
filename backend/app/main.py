@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.models import Base
-from app.routers import search, ingest, stats, stories
+from app.routers import search, ingest, stats, stories, ssr
 from app.services.embeddings import generate_embedding
 
 
@@ -87,6 +87,7 @@ app.include_router(search.router)
 app.include_router(ingest.router)
 app.include_router(stats.router)
 app.include_router(stories.router)
+app.include_router(ssr.router)
 
 
 @app.get("/api/health")

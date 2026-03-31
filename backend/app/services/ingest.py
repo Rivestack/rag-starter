@@ -1,4 +1,5 @@
 import asyncio
+import html
 import re
 import logging
 import time
@@ -25,6 +26,7 @@ _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 def _strip_html(text: str) -> str:
     clean = _HTML_TAG_RE.sub(" ", text)
+    clean = html.unescape(clean)
     return re.sub(r"\s+", " ", clean).strip()
 
 

@@ -31,7 +31,16 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+    - host: ask.rivestack.io
+      paths:
+        - path: /story/
+          pathType: Prefix
+        - path: /api/sitemap.xml
+          pathType: Exact
   tls:
     - hosts:
         - ask-api.rivestack.io
       secretName: hn-search-backend-tls-prod
+    - hosts:
+        - ask.rivestack.io
+      secretName: hn-search-frontend-tls-prod

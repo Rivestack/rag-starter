@@ -31,6 +31,12 @@ function hostname(url: string) {
   try { return new globalThis.URL(url).hostname } catch { return url }
 }
 
+function decodeHtml(text: string) {
+  const el = document.createElement('textarea')
+  el.innerHTML = text
+  return el.value
+}
+
 async function fetchStory() {
   isLoading.value = true
   notFound.value = false
@@ -133,7 +139,7 @@ onMounted(fetchStory)
     <!-- Story Text (Ask HN / Show HN) -->
     <Card v-if="storyTextChunk" class="mb-6">
       <CardContent class="pt-5">
-        <p class="text-sm leading-relaxed whitespace-pre-line">{{ storyTextChunk.content }}</p>
+        <p class="text-sm leading-relaxed whitespace-pre-line">{{ decodeHtml(storyTextChunk.content) }}</p>
       </CardContent>
     </Card>
 
@@ -145,7 +151,7 @@ onMounted(fetchStory)
           <CardContent class="pt-4 pb-4">
             <p class="text-sm leading-relaxed">
               <span v-if="chunk.author" class="font-medium text-foreground">{{ chunk.author }}:</span>
-              {{ ' ' }}{{ chunk.content }}
+              {{ ' ' }}{{ decodeHtml(chunk.content) }}
             </p>
           </CardContent>
         </Card>
