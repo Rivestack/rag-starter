@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ask.rivestack.io/sitemap.xml
+Sitemap: https://ask-api.rivestack.io/api/sitemap.xml

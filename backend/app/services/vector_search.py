@@ -9,6 +9,7 @@ from app.database import async_session
 @dataclass
 class HNSearchResult:
     story_title: str
+    story_slug: str
     story_url: str | None
     story_author: str
     story_score: int
@@ -44,6 +45,7 @@ async def search_hn(
         query = sql_text("""
             SELECT
                 s.title AS story_title,
+                s.slug AS story_slug,
                 s.url AS story_url,
                 s.author AS story_author,
                 s.score AS story_score,
@@ -71,6 +73,7 @@ async def search_hn(
         results = [
             HNSearchResult(
                 story_title=row.story_title,
+                story_slug=row.story_slug,
                 story_url=row.story_url,
                 story_author=row.story_author,
                 story_score=row.story_score,

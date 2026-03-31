@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -5,6 +6,15 @@ from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
+
+
+def generate_slug(title: str, hn_id: int) -> str:
+    """Generate a URL-friendly slug from a story title, with hn_id suffix for uniqueness."""
+    slug = title.lower()
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"[\s-]+", "-", slug).strip("-")
+    slug = slug[:80].rstrip("-")
+    return f"{slug}-{hn_id}" if slug else str(hn_id)
 
 
 class Base(DeclarativeBase):
@@ -16,6 +26,7 @@ class Story(Base):
     __table_args__ = (
         Index("idx_stories_hn_id", "hn_id", unique=True),
         Index("idx_stories_created_at", "created_at"),
+        Index("idx_stories_slug", "slug", unique=True),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -28,6 +39,7 @@ class Story(Base):
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     num_comments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     story_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    slug: Mapped[str] = mapped_column(String(300), nullable=False, unique=True)
     story_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="story"
     )

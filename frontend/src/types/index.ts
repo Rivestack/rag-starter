@@ -1,5 +1,6 @@
 export interface SearchResultItem {
   story_title: string
+  story_slug: string
   story_url: string | null
   story_author: string
   story_score: number
@@ -9,6 +10,35 @@ export interface SearchResultItem {
   comment_author: string | null
   similarity_score: number
   story_date: string
+}
+
+export interface StoryDetail {
+  slug: string
+  hn_id: number
+  title: string
+  url: string | null
+  author: string
+  score: number
+  num_comments: number
+  story_text: string | null
+  story_type: string
+  created_at: string
+  chunks: StoryChunk[]
+}
+
+export interface StoryChunk {
+  content: string
+  chunk_type: string
+  author: string | null
+}
+
+export interface RelatedStory {
+  slug: string
+  title: string
+  author: string
+  score: number
+  created_at: string
+  similarity_score: number
 }
 
 export interface PerformanceStats {

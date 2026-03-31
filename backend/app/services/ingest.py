@@ -5,10 +5,10 @@ import time
 from datetime import datetime, timezone, timedelta
 
 import httpx
-from sqlalchemy import select, delete
+from sqlalchemy import select
 
 from app.database import async_session
-from app.models import Story, Chunk
+from app.models import Story, Chunk, generate_slug
 from app.services.hn_client import (
     fetch_story_ids_in_range,
     parse_story_from_hit,
@@ -129,6 +129,7 @@ async def ingest_one_day(day_start: datetime, day_end: datetime) -> dict:
                 story_text=story.story_text,
                 story_type=story.story_type,
                 created_at=story.created_at,
+                slug=generate_slug(story.title, story.hn_id),
             )
             session.add(db_story)
             await session.flush()
@@ -201,20 +202,11 @@ async def ingest_initial():
 
 
 async def ingest_daily():
-    """Fetch last 24 hours and delete stories older than 30 days."""
+    """Fetch last 24 hours of stories. All data is kept permanently for SEO."""
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(hours=25)  # 25h overlap for safety
 
     result = await ingest_one_day(start_dt, end_dt)
-
-    # Clean up old stories (cascade deletes chunks)
-    cutoff = end_dt - timedelta(days=settings.hn_days_to_keep)
-    async with async_session() as session:
-        deleted = await session.execute(
-            delete(Story).where(Story.created_at < cutoff)
-        )
-        await session.commit()
-        logger.info(f"Pruned {deleted.rowcount} stories older than {cutoff.date()}")
 
     return {
         "stories_fetched": result["stories_fetched"],

@@ -8,6 +8,7 @@ class SearchRequest(BaseModel):
 
 class SearchResultItem(BaseModel):
     story_title: str
+    story_slug: str
     story_url: str | None
     story_author: str
     story_score: int
@@ -46,3 +47,38 @@ class IngestResponse(BaseModel):
     stories_fetched: int
     chunks_created: int
     duration_seconds: float
+
+
+class StoryChunk(BaseModel):
+    content: str
+    chunk_type: str
+    author: str | None = None
+
+
+class StoryDetail(BaseModel):
+    slug: str
+    hn_id: int
+    title: str
+    url: str | None
+    author: str
+    score: int
+    num_comments: int
+    story_text: str | None
+    story_type: str
+    created_at: str
+    chunks: list[StoryChunk]
+
+
+class RelatedStory(BaseModel):
+    slug: str
+    title: str
+    author: str
+    score: int
+    created_at: str
+    similarity_score: float
+
+
+class StorySummary(BaseModel):
+    slug: str
+    title: str
+    created_at: str

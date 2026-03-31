@@ -34,6 +34,7 @@ async def search(request: SearchRequest):
         results=[
             SearchResultItem(
                 story_title=r.story_title,
+                story_slug=r.story_slug,
                 story_url=r.story_url,
                 story_author=r.story_author,
                 story_score=r.story_score,
