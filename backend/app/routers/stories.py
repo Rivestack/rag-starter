@@ -1,11 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
-from sqlalchemy import select, func, text as sql_text
+from sqlalchemy import select, text as sql_text
 
 from app.database import async_session
 from app.models import Story, Chunk
 from app.schemas import StoryDetail, StoryChunk, RelatedStory, StorySummary
-from app.services.embeddings import generate_embedding
 
 router = APIRouter(prefix="/api", tags=["stories"])
 
@@ -68,35 +67,33 @@ async def get_related_stories(slug: str, limit: int = 5):
         if embedding_row is None:
             return []
 
+        # Convert pgvector value to string format for raw SQL
+        embedding_str = str(list(embedding_row)) if not isinstance(embedding_row, str) else embedding_row
+
         # Find similar stories by their title chunks, excluding self
-        query = sql_text("""
-            SELECT DISTINCT ON (s.id)
-                s.slug,
-                s.title,
-                s.author,
-                s.score,
-                s.created_at,
-                1 - (c.embedding <=> :query_vec) AS similarity_score
-            FROM chunks c
-            JOIN stories s ON c.story_id = s.id
-            WHERE c.chunk_type = 'title'
-              AND s.id != :story_id
-              AND 1 - (c.embedding <=> :query_vec) > 0.3
-            ORDER BY s.id, c.embedding <=> :query_vec
-        """)
-
-        # Wrap to sort and limit
-        wrapped = sql_text(f"""
-            SELECT * FROM ({query.text}) sub
-            ORDER BY similarity_score DESC
-            LIMIT :limit
-        """)
-
-        result = await session.execute(wrapped, {
-            "query_vec": str(list(embedding_row)),
-            "story_id": str(story.id),
-            "limit": limit,
-        })
+        result = await session.execute(
+            sql_text("""
+                SELECT
+                    s.slug,
+                    s.title,
+                    s.author,
+                    s.score,
+                    s.created_at,
+                    1 - (c.embedding <=> :query_vec) AS similarity_score
+                FROM chunks c
+                JOIN stories s ON c.story_id = s.id
+                WHERE c.chunk_type = 'title'
+                  AND s.id != :story_id
+                  AND 1 - (c.embedding <=> :query_vec) > 0.3
+                ORDER BY c.embedding <=> :query_vec
+                LIMIT :limit
+            """),
+            {
+                "query_vec": embedding_str,
+                "story_id": str(story.id),
+                "limit": limit,
+            },
+        )
 
         return [
             RelatedStory(

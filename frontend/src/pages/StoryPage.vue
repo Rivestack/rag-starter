@@ -36,25 +36,25 @@ async function fetchStory() {
   notFound.value = false
 
   try {
-    const [storyRes, relatedRes] = await Promise.all([
-      fetch(`${API_BASE}/api/stories/${slug.value}`),
-      fetch(`${API_BASE}/api/stories/${slug.value}/related`),
-    ])
-
+    const storyRes = await fetch(`${API_BASE}/api/stories/${slug.value}`)
     if (!storyRes.ok) {
       notFound.value = true
       return
     }
-
     story.value = await storyRes.json()
-    related.value = relatedRes.ok ? await relatedRes.json() : []
-
-    // Update page title
     document.title = `${story.value!.title} — Ask HN | Rivestack`
   } catch {
     notFound.value = true
   } finally {
     isLoading.value = false
+  }
+
+  // Fetch related stories independently — never block page render
+  try {
+    const relatedRes = await fetch(`${API_BASE}/api/stories/${slug.value}/related`)
+    related.value = relatedRes.ok ? await relatedRes.json() : []
+  } catch {
+    related.value = []
   }
 }
 
