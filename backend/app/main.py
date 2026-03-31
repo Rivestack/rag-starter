@@ -37,20 +37,23 @@ async def lifespan(app: FastAPI):
             await conn.execute(text(
                 "ALTER TABLE stories ADD COLUMN slug VARCHAR(300)"
             ))
-            # Backfill slugs for existing stories
-            rows = await conn.execute(text("SELECT id, title, hn_id FROM stories"))
-            for row in rows.fetchall():
-                from app.models import generate_slug
-                slug = generate_slug(row.title, row.hn_id)
-                await conn.execute(text(
-                    "UPDATE stories SET slug = :slug WHERE id = :id"
-                ), {"slug": slug, "id": row.id})
+        # Always backfill any stories with NULL slugs
+        from app.models import generate_slug
+        null_slugs = await conn.execute(text(
+            "SELECT id, title, hn_id FROM stories WHERE slug IS NULL"
+        ))
+        for row in null_slugs.fetchall():
+            slug = generate_slug(row.title, row.hn_id)
             await conn.execute(text(
-                "ALTER TABLE stories ALTER COLUMN slug SET NOT NULL"
-            ))
-            await conn.execute(text(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_stories_slug ON stories (slug)"
-            ))
+                "UPDATE stories SET slug = :slug WHERE id = :id"
+            ), {"slug": slug, "id": row.id})
+        # Ensure NOT NULL constraint and unique index exist
+        await conn.execute(text(
+            "ALTER TABLE stories ALTER COLUMN slug SET NOT NULL"
+        ))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_stories_slug ON stories (slug)"
+        ))
         await conn.run_sync(Base.metadata.create_all)
         # Create HNSW index for cosine similarity
         await conn.execute(text("""
