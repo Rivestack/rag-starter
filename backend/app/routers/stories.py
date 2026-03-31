@@ -146,7 +146,7 @@ async def list_stories(offset: int = 0, limit: int = 100):
         ]
 
 
-@router.get("/sitemap.xml", response_class=Response)
+@router.get("/sitemap.xml", response_class=Response, include_in_schema=False)
 async def sitemap():
     """Generate dynamic sitemap with all story pages."""
     async with async_session() as session:

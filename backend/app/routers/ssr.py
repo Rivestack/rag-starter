@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select, text as sql_text
 
 from app.database import async_session
@@ -115,9 +115,10 @@ async def ssr_story_page(slug: str, request: Request):
     hn_url = f"https://news.ycombinator.com/item?id={story.hn_id}"
     page_url = f"{BASE_URL}/story/{story.slug}"
     title = _esc(story.title)
+    comment_word = "comment" if story.num_comments == 1 else "comments"
     description = _esc(
         f"{story.title} — {story.score} points by {story.author}, "
-        f"{story.num_comments} comments. Discussion from Hacker News."
+        f"{story.num_comments} {comment_word}. Discussion from Hacker News."
     )
 
     # Build comment HTML
@@ -165,6 +166,25 @@ async def ssr_story_page(slug: str, request: Request):
             '</section>'
         )
 
+    # Build JSON-LD comment array
+    import json as _json
+    jsonld_comments = ""
+    if comments:
+        comment_items = []
+        for c in comments:
+            item = {
+                "@type": "Comment",
+                "text": html.unescape(c.content),
+            }
+            if c.author:
+                item["author"] = {
+                    "@type": "Person",
+                    "name": c.author,
+                    "url": f"https://news.ycombinator.com/user?id={c.author}",
+                }
+            comment_items.append(item)
+        jsonld_comments = ',\n  "comment": ' + _json.dumps(comment_items, ensure_ascii=False)
+
     # Build external link
     ext_link = ""
     if story.url:
@@ -198,14 +218,15 @@ async def ssr_story_page(slug: str, request: Request):
   "@context": "https://schema.org",
   "@type": "DiscussionForumPosting",
   "headline": "{title}",
+  "text": "{_esc(story_text.content if story_text else story.title)}",
   "url": "{page_url}",
-  "author": {{"@type": "Person", "name": "{_esc(story.author)}"}},
-  "datePublished": "{story.created_at.isoformat()[:10]}",
+  "author": {{"@type": "Person", "name": "{_esc(story.author)}", "url": "https://news.ycombinator.com/user?id={_esc(story.author)}"}},
+  "datePublished": "{story.created_at.isoformat()[:19]}Z",
   "interactionStatistic": [
     {{"@type": "InteractionCounter", "interactionType": "https://schema.org/LikeAction", "userInteractionCount": {story.score}}},
     {{"@type": "InteractionCounter", "interactionType": "https://schema.org/CommentAction", "userInteractionCount": {story.num_comments}}}
   ],
-  "isPartOf": {{"@type": "WebSite", "name": "Ask HN", "url": "{BASE_URL}"}}
+  "isPartOf": {{"@type": "WebSite", "name": "Ask HN", "url": "{BASE_URL}"}}{jsonld_comments}
 }}
 </script>
 <style>
@@ -234,7 +255,7 @@ h1 {{ font-size: 1.5rem; line-height: 1.3; margin-bottom: 8px; }}
 <div class="header-meta">
 <span>{_esc(story.author)}</span>
 <span>{story.score} points</span>
-<span>{story.num_comments} comments</span>
+<span>{story.num_comments} {comment_word}</span>
 <span>{_format_date(story.created_at)}</span>
 </div>
 <div class="meta">{ext_link}<a href="{hn_url}" rel="noopener">View on Hacker News</a></div>
@@ -250,6 +271,38 @@ Semantic search powered by <a href="https://rivestack.io"><strong>Rivestack pgve
 </html>"""
 
     return HTMLResponse(content=page_html)
+
+
+@router.get("/sitemap.xml", response_class=Response)
+async def sitemap_xml():
+    """Serve sitemap at /sitemap.xml on the public domain."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(Story.slug, Story.created_at)
+            .order_by(Story.created_at.desc())
+        )
+        stories = result.fetchall()
+
+    urls = [
+        f'  <url>\n    <loc>{BASE_URL}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>'
+    ]
+    for row in stories:
+        urls.append(
+            f'  <url>\n'
+            f'    <loc>{BASE_URL}/story/{row.slug}</loc>\n'
+            f'    <lastmod>{row.created_at.isoformat()[:10]}</lastmod>\n'
+            f'    <changefreq>monthly</changefreq>\n'
+            f'    <priority>0.7</priority>\n'
+            f'  </url>'
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + '\n'.join(urls) + '\n'
+        '</urlset>\n'
+    )
+    return Response(content=xml, media_type="application/xml")
 
 
 def _not_found_html() -> str:

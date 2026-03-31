@@ -114,7 +114,7 @@ onMounted(fetchStory)
         </span>
         <span class="flex items-center gap-1">
           <MessageSquare class="h-3.5 w-3.5" />
-          {{ story.num_comments }} comments
+          {{ story.num_comments }} {{ story.num_comments === 1 ? 'comment' : 'comments' }}
         </span>
         <span class="flex items-center gap-1">
           <Calendar class="h-3.5 w-3.5" />
