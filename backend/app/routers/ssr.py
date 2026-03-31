@@ -93,7 +93,7 @@ async def ssr_story_page(slug: str, request: Request):
             )
 
         chunks_result = await session.execute(
-            select(Chunk.content, Chunk.chunk_type, Chunk.author)
+            select(Chunk.content, Chunk.chunk_type, Chunk.author, Chunk.created_at)
             .where(Chunk.story_id == story.id)
             .order_by(Chunk.created_at)
         )
@@ -175,6 +175,7 @@ async def ssr_story_page(slug: str, request: Request):
             item = {
                 "@type": "Comment",
                 "text": html.unescape(c.content),
+                "datePublished": f"{c.created_at.isoformat()[:19]}Z",
             }
             if c.author:
                 item["author"] = {
