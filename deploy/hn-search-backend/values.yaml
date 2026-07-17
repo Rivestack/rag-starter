@@ -1,5 +1,10 @@
 replicaCount: 1
 
+# Recreate avoids running two backend pods (and two DB connection pools) at once
+# during a deploy, which would exceed the Rivestack DB role's connection limit.
+strategy:
+  type: Recreate
+
 secret: hn-search-backend-config
 
 image:

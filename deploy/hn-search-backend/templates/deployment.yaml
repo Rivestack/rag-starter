@@ -7,6 +7,12 @@ metadata:
     release: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  # Recreate: terminate the old pod before starting the new one so only one DB
+  # connection pool is open at a time. A rolling update would run old+new pods
+  # together, and their two pools exceed the Rivestack role's connection limit
+  # (TooManyConnectionsError), which wedges the deploy.
+  strategy:
+    type: {{ .Values.strategy.type | default "Recreate" }}
   selector:
     matchLabels:
       app: {{ .Chart.Name }}
