@@ -68,6 +68,19 @@ jobs:
           helm uninstall docchat-backend --namespace rivestack-demo --kubeconfig kubeconfig.yaml 2>/dev/null || true
           helm uninstall docchat-frontend --namespace rivestack-demo --kubeconfig kubeconfig.yaml 2>/dev/null || true
 
+      - name: Recover stuck (pending) releases before upgrade
+        run: |
+          for rel in hn-search-backend hn-search-frontend; do
+            status=$(helm status "$rel" --namespace rivestack-demo --kubeconfig kubeconfig.yaml -o json 2>/dev/null | jq -r '.info.status // "none"')
+            echo "$rel status: $status"
+            case "$status" in
+              pending-*)
+                echo "  -> stuck in $status; rolling back to last good revision to clear the lock"
+                helm rollback "$rel" --namespace rivestack-demo --kubeconfig kubeconfig.yaml --wait --timeout 3m || true
+                ;;
+            esac
+          done
+
       - name: Deploy backend
         run: |
           helm upgrade hn-search-backend ./deploy/hn-search-backend \
