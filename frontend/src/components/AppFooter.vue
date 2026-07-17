@@ -4,7 +4,7 @@
 <template>
   <footer class="border-t py-4 px-6">
     <div class="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-      <span>Powered by</span>
+      <span><span class="text-primary">//</span> powered by</span>
       <a
         href="https://rivestack.io"
         target="_blank"

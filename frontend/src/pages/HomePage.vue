@@ -35,16 +35,28 @@ fetchStats()
 </script>
 
 <template>
-  <!-- Hero (before first search) -->
-  <div v-if="!hasSearched && !isSearching" class="flex flex-col items-center gap-4 pt-16 pb-8">
-    <div class="flex items-center justify-center h-16 w-16 rounded-2xl bg-primary/10">
-      <img src="/vector-icon.png" alt="Vector" class="h-8 w-8" />
-    </div>
-    <div class="text-center">
-      <h2 class="text-2xl font-bold tracking-tight">Search Hacker News</h2>
-      <p class="text-sm text-muted-foreground mt-1 max-w-md">
-        Semantic search over Hacker News stories and comments, powered by Rivestack pgvector
-      </p>
+  <!-- Hero (before first search): a retro terminal window -->
+  <div v-if="!hasSearched && !isSearching" class="w-full pt-8 pb-2">
+    <div class="border-2 border-foreground bg-card shadow-[6px_6px_0_0_#214bff]">
+      <!-- Titlebar: traffic-light dots + path -->
+      <div class="flex items-center gap-2 border-b-2 border-foreground bg-muted px-3 py-2">
+        <span class="h-3 w-3 rounded-full bg-[#ff5f57]" />
+        <span class="h-3 w-3 rounded-full bg-[#febc2e]" />
+        <span class="h-3 w-3 rounded-full bg-[#28c840]" />
+        <span class="ml-2 text-xs text-muted-foreground">~/rivestack/ask-hn</span>
+      </div>
+      <!-- Body -->
+      <div class="px-5 py-7 sm:px-7 sm:py-8">
+        <p class="text-sm">
+          <span class="text-primary">visitor@rivestack</span><span class="text-muted-foreground"> ~ $ </span><span class="text-foreground">semantic-search --over hacker-news</span>
+        </p>
+        <h2 class="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+          <span class="text-primary">#</span> Search Hacker News
+        </h2>
+        <p class="mt-2 max-w-xl text-sm text-muted-foreground">
+          <span class="text-primary">//</span> semantic search over stories + comments, powered by Rivestack pgvector
+        </p>
+      </div>
     </div>
   </div>
 

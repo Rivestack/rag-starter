@@ -32,7 +32,7 @@ function hostname(url: string) {
 
 <template>
   <RouterLink :to="{ name: 'story', params: { slug: result.story_slug } }" class="block">
-    <Card class="transition-shadow hover:shadow-md">
+    <Card class="transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_#214bff]">
       <CardHeader class="pb-3">
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
@@ -58,7 +58,7 @@ function hostname(url: string) {
             <Badge variant="secondary" class="text-[10px]">
               {{ chunkLabel(result.chunk_type) }}
             </Badge>
-            <Badge variant="outline" class="text-[10px] tabular-nums">
+            <Badge variant="outline" class="text-[10px] tabular-nums border-primary/60 text-primary">
               {{ (result.similarity_score * 100).toFixed(0) }}%
             </Badge>
           </div>
