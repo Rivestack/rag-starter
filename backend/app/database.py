@@ -30,6 +30,11 @@ def _build_async_url(raw_url: str) -> tuple[str, dict]:
         ctx = ssl_module.create_default_context()
         connect_args["ssl"] = ctx
 
+    # The DB endpoint is PgBouncer in transaction pooling mode (solo :6432),
+    # where asyncpg's implicit prepared-statement cache breaks ("prepared
+    # statement does not exist").
+    connect_args["statement_cache_size"] = 0
+
     return new_url, connect_args
 
 
