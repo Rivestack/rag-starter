@@ -83,6 +83,16 @@ app.add_middleware(
     max_age=3600,
 )
 
+
+# Demo mirrors public HN content — keep every page out of search indexes.
+# Crawling stays allowed (robots.txt) so Google can see the noindex and drop
+# the already-indexed story pages.
+@app.middleware("http")
+async def add_noindex_header(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
 app.include_router(search.router)
 app.include_router(ingest.router)
 app.include_router(stats.router)

@@ -213,7 +213,7 @@ async def ssr_story_page(slug: str, request: Request):
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{title} — Ask HN">
 <meta name="twitter:description" content="{description}">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="noindex, nofollow">
 <script type="application/ld+json">
 {{
   "@context": "https://schema.org",
