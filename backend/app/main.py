@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,6 +9,8 @@ from app.database import engine
 from app.models import Base
 from app.routers import search, ingest, stats, stories, ssr
 from app.services.embeddings import generate_embedding
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -61,8 +64,13 @@ async def lifespan(app: FastAPI):
             ON chunks USING hnsw (embedding vector_cosine_ops)
             WITH (m = 16, ef_construction = 64)
         """))
-    # Warm up OpenAI connection so first search is fast
-    await generate_embedding("warmup")
+    # Warm up OpenAI connection so first search is fast. Best-effort: a failure
+    # here (expired key, exhausted quota) must not stop the app from booting,
+    # since story pages and browsing do not need embeddings.
+    try:
+        await generate_embedding("warmup")
+    except Exception as e:
+        logger.warning("OpenAI warmup failed, continuing without it: %s", e)
     yield
     await engine.dispose()
 
