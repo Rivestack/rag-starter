@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone, timedelta
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, delete, func
 
 from app.database import async_session
 from app.models import Story, Chunk, generate_slug
@@ -204,7 +204,7 @@ async def ingest_initial():
 
 
 async def ingest_daily():
-    """Fetch last 24 hours of stories. All data is kept permanently for SEO."""
+    """Fetch last 24 hours of stories. Retention is handled by prune_old_stories."""
     end_dt = datetime.now(timezone.utc)
     start_dt = end_dt - timedelta(hours=25)  # 25h overlap for safety
 
@@ -214,4 +214,43 @@ async def ingest_daily():
         "stories_fetched": result["stories_fetched"],
         "chunks_created": result["chunks_created"],
         "duration_seconds": 0,
+    }
+
+
+async def prune_old_stories() -> dict:
+    """Delete stories outside the retention window so the database stays bounded.
+
+    Chunks are removed by the stories.id ON DELETE CASCADE, which keeps this a
+    single statement instead of loading rows into the session.
+    """
+    start = time.monotonic()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=settings.hn_days_to_keep)
+
+    async with async_session() as session:
+        chunks_to_delete = await session.scalar(
+            select(func.count())
+            .select_from(Chunk)
+            .join(Story, Story.id == Chunk.story_id)
+            .where(Story.created_at < cutoff)
+        )
+        result = await session.execute(
+            delete(Story).where(Story.created_at < cutoff),
+            execution_options={"synchronize_session": False},
+        )
+        await session.commit()
+
+    duration = time.monotonic() - start
+    logger.info(
+        "Pruned %s stories / %s chunks older than %s (%.2fs)",
+        result.rowcount,
+        chunks_to_delete,
+        cutoff.isoformat(),
+        duration,
+    )
+    return {
+        "stories_deleted": result.rowcount,
+        "chunks_deleted": chunks_to_delete or 0,
+        "cutoff": cutoff.isoformat(),
+        "retention_days": settings.hn_days_to_keep,
+        "duration_seconds": round(duration, 2),
     }

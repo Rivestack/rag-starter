@@ -3,8 +3,8 @@ import logging
 
 from fastapi import APIRouter
 
-from app.schemas import IngestResponse
-from app.services.ingest import ingest_initial, ingest_daily
+from app.schemas import IngestResponse, PruneResponse
+from app.services.ingest import ingest_initial, ingest_daily, prune_old_stories
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 logger = logging.getLogger(__name__)
@@ -36,6 +36,13 @@ async def trigger_initial_ingest():
 
 @router.post("/daily", response_model=IngestResponse)
 async def trigger_daily_ingest():
-    """Trigger daily update: fetch last 24h, clean up old stories."""
+    """Trigger daily update: fetch last 24h of stories."""
     result = await ingest_daily()
     return IngestResponse(**result)
+
+
+@router.post("/prune", response_model=PruneResponse)
+async def trigger_prune():
+    """Drop stories outside the retention window to keep the database bounded."""
+    result = await prune_old_stories()
+    return PruneResponse(**result)

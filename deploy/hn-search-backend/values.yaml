@@ -24,6 +24,12 @@ service:
   type: ClusterIP
   port: 8000
 
+# Stories older than the backend's hn_days_to_keep (default 30) are deleted on
+# this schedule, so the demo database does not grow without bound. Offset from
+# the 06:00 ingest so the two jobs do not overlap.
+retention:
+  schedule: '30 6 * * *'
+
 ingress:
   enabled: true
   annotations:

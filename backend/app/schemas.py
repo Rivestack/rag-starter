@@ -49,6 +49,14 @@ class IngestResponse(BaseModel):
     duration_seconds: float
 
 
+class PruneResponse(BaseModel):
+    stories_deleted: int
+    chunks_deleted: int
+    cutoff: str
+    retention_days: int
+    duration_seconds: float
+
+
 class StoryChunk(BaseModel):
     content: str
     chunk_type: str
