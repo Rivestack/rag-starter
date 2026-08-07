@@ -24,7 +24,17 @@ export function useSearch() {
         body: JSON.stringify({ query: q }),
       })
 
-      if (!response.ok) throw new Error('Search failed')
+      if (!response.ok) {
+        // The API sends a reason in `detail` (e.g. embedding quota exhausted).
+        // Prefer it over a generic string so the page can explain the failure.
+        let detail = ''
+        try {
+          detail = (await response.json())?.detail ?? ''
+        } catch {
+          // Non-JSON body (e.g. a proxy error page); fall back to the status.
+        }
+        throw new Error(detail || `Search failed (HTTP ${response.status})`)
+      }
 
       const data: SearchResponse = await response.json()
       results.value = data.results

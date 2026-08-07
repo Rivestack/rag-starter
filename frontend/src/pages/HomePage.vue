@@ -10,7 +10,7 @@ import { useStats } from '@/composables/useStats'
 
 const route = useRoute()
 const router = useRouter()
-const { query, results, performance, isSearching, search } = useSearch()
+const { query, results, performance, isSearching, error, search } = useSearch()
 const { stats, fetchStats } = useStats()
 
 const hasSearched = computed(() => performance.value !== null)
@@ -61,6 +61,15 @@ fetchStats()
   </div>
 
   <SearchBox v-model="query" :is-searching="isSearching" @search="handleSearch" />
+  <!-- Without this the composable set `error` and nothing ever rendered it, so a
+       failed search looked identical to a search that returned no results. -->
+  <div
+    v-if="error && !isSearching"
+    role="alert"
+    class="mt-4 rounded border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+  >
+    <span class="text-primary">//</span> {{ error }}
+  </div>
   <StatsBar v-if="stats" :stats="stats" />
   <PerformanceStats v-if="performance" :performance="performance" />
   <SearchResults :results="results" :is-searching="isSearching" :has-searched="hasSearched" />

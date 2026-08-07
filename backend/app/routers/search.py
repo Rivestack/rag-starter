@@ -1,6 +1,8 @@
+import logging
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from openai import OpenAIError, RateLimitError
 
 from app.schemas import SearchRequest, SearchResponse, SearchResultItem, PerformanceStats
 from app.services.embeddings import generate_embedding
@@ -8,6 +10,7 @@ from app.services.vector_search import search_hn
 from app.config import settings
 
 router = APIRouter(prefix="/api", tags=["search"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/search", response_model=SearchResponse)
@@ -15,9 +18,27 @@ async def search(request: SearchRequest):
     """Semantic search over HN stories and comments."""
     total_start = time.time()
 
-    # Generate embedding for query
+    # Generate embedding for query.
+    #
+    # Embedding failures are the provider being unavailable, not a bad request:
+    # letting them escape returned a bare 500 with no body, so the UI could only
+    # report a generic failure and in practice showed nothing at all. Answer with
+    # a 503 and a reason the page can display.
     embed_start = time.time()
-    query_embedding = await generate_embedding(request.query)
+    try:
+        query_embedding = await generate_embedding(request.query)
+    except RateLimitError:
+        logger.exception("embedding quota exhausted; search unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail="Search is temporarily unavailable: the embedding quota is exhausted. Browsing still works.",
+        )
+    except OpenAIError:
+        logger.exception("embedding provider error; search unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail="Search is temporarily unavailable: the embedding provider did not respond.",
+        )
     embedding_time_ms = (time.time() - embed_start) * 1000
 
     # Search
