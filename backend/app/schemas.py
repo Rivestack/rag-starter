@@ -55,6 +55,7 @@ class PruneResponse(BaseModel):
     cutoff: str
     retention_days: int
     duration_seconds: float
+    quota_rows_deleted: int = 0
 
 
 class StoryChunk(BaseModel):

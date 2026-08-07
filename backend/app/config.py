@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     top_k: int = 10
     similarity_threshold: float = 0.1
 
+    # Public-demo spend cap: each search costs one embedding call.
+    search_rate_limit_per_day: int = 5
+
     # HN ingestion settings
     hn_min_score: int = 10
     hn_days_to_keep: int = 30

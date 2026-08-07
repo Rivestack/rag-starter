@@ -5,6 +5,7 @@ from fastapi import APIRouter
 
 from app.schemas import IngestResponse, PruneResponse
 from app.services.ingest import ingest_initial, ingest_daily, prune_old_stories
+from app.services.rate_limit import prune_quota
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 logger = logging.getLogger(__name__)
@@ -43,6 +44,11 @@ async def trigger_daily_ingest():
 
 @router.post("/prune", response_model=PruneResponse)
 async def trigger_prune():
-    """Drop stories outside the retention window to keep the database bounded."""
+    """Drop stories outside the retention window to keep the database bounded.
+
+    Also expires the per-IP search counters, so visitor addresses are not
+    retained beyond the short window the rate limit needs them for.
+    """
     result = await prune_old_stories()
+    result["quota_rows_deleted"] = await prune_quota()
     return PruneResponse(**result)

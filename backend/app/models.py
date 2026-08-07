@@ -1,8 +1,8 @@
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, Index
+from sqlalchemy import String, Integer, Text, ForeignKey, DateTime, Date, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
@@ -53,6 +53,29 @@ class Story(Base):
     chunks: Mapped[list["Chunk"]] = relationship(
         back_populates="story", cascade="all, delete-orphan"
     )
+
+
+class SearchQuota(Base):
+    """Per-IP, per-day search counter.
+
+    Every search costs one embedding call, so this is the spend cap on a public
+    demo. Kept in Postgres rather than in memory because the backend runs a
+    Recreate rollout: an in-memory counter would reset on every deploy and pod
+    restart, which is exactly when a cap matters least to lose.
+
+    Rows are pruned by the retention job, so this is not a long-lived store of
+    visitor IPs.
+    """
+
+    __tablename__ = "search_quota"
+    __table_args__ = (
+        Index("idx_search_quota_day", "day"),
+    )
+
+    # 45 chars covers a full IPv6 address, including IPv4-mapped form.
+    client_ip: Mapped[str] = mapped_column(String(45), primary_key=True)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class Chunk(Base):
